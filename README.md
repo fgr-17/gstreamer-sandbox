@@ -1,20 +1,26 @@
-# Gstreamer Tutorials
+# Gstreamer Sandbox
 
-This is a  repository that contains [Gstreamer Tutorials](https://gstreamer.freedesktop.org/documentation/tutorials/index.html) and some makefiles
+This repository contains basic gstreamer examples based on tutorial's code
 
-## Installation
+# Note
 
-The examples that doesn't need the screen can be run inside the docker container provided. Run the following to open the container:
-(Container building is not working yet!!)
+Make sure you have cmake and make:
 
 ```bash
-docker-compose up -d
-docker exec -it gstreamer-container bash
+
+sudo apt update && apt install cmake make
+
 ```
 
-## Usage
+Create a /bin or /build folder please! do not build on this tutorial root folder. Then run cmake and make.
 
-Compile and run every example using the Makefile provided on Linux. 
+```bash
+
+mkdir -p build
+cd build
+cmake .. && make
+
+```
 
 ## Contributing
 
@@ -23,4 +29,4 @@ Pull requests are welcome. For major changes, please open an issue first to disc
 
 
 ## License
-[MIT](https://choosealicense.com/licenses/mit/)
+[GPL](./LICENSE)
