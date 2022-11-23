@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-set(app_name gstreamer-test)
+set(app_name gstreamer-local)
 
 project(GSTREAMER_TUTORIALS)
 
@@ -13,7 +13,7 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -W -Wall -Wextra")
 
 add_executable (${app_name}
-main.cpp)
+local.cpp)
 
 message("App name: " ${app_name})
 
