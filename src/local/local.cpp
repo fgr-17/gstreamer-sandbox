@@ -28,12 +28,15 @@ int main (int argc, char *argv[])
   GstStateChangeReturn ret;
 
   std::string remote_ip{"0.0.0.0"};
+  gint port = 0;
 
-  if(argc <= 1) {
+  if(argc <= 2) {
     remote_ip = "127.0.0.1";
+    port = 4000;
   }
   else {
     remote_ip = argv[1];
+    port = std::stoi(argv[2]);
   }
 
   if(utils::validate_ip(remote_ip)) {
@@ -41,6 +44,14 @@ int main (int argc, char *argv[])
   }
   else {
     std::cout << "Not valid IP. Exiting..." << std::endl;
+    exit(EXIT_FAILURE);
+  }
+
+  if(utils::validate_port(port)) {
+    std::cout << "Port: " << port << std::endl;
+  }
+  else {
+    std::cout << "Not valid port. Exiting..." << std::endl;
     exit(EXIT_FAILURE);
   }
 
