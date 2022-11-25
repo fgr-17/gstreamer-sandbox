@@ -10,23 +10,7 @@
 #include <iostream>
 #include <string>
 #include <gst/gst.h>
-
-#include <arpa/inet.h>
-
-/**
- * @brief validate ip ipv4 format
- * 
- * @param ip 
- * @return true valid IP
- * @return false unvalid IP
- * 
- * @author federico.roux@globant.com
- */
-bool validate_ip(std::string ip) {
-  struct sockaddr_in sa;
-  auto res = inet_pton(AF_INET, ip.c_str(),  &(sa.sin_addr));
-  return res != 0;
-}
+#include <utils.h>
 
 /**
  * @brief main app
@@ -43,7 +27,6 @@ int main (int argc, char *argv[])
   GstMessage *msg;
   GstStateChangeReturn ret;
 
-
   std::string remote_ip{"0.0.0.0"};
 
   if(argc <= 1) {
@@ -53,14 +36,13 @@ int main (int argc, char *argv[])
     remote_ip = argv[1];
   }
 
-  if(validate_ip(remote_ip)) {
+  if(utils::validate_ip(remote_ip)) {
     std::cout << "Remote IP: " << remote_ip << std::endl;
   }
   else {
     std::cout << "Not valid IP. Exiting..." << std::endl;
-    return 1;
+    exit(EXIT_FAILURE);
   }
-
 
   /* Initialize GStreamer */
   gst_init (&argc, &argv);
