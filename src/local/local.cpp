@@ -60,9 +60,11 @@ int main (int argc, char *argv[])
 
   /* Create the elements */
   source = gst_element_factory_make ("videotestsrc", "source");
-  sink = gst_element_factory_make ("autovideosink", "sink");
   filter = gst_element_factory_make("vertigotv", "filter");
   converter = gst_element_factory_make("videoconvert", "converter");
+  // sink = gst_element_factory_make ("autovideosink", "sink");
+  sink = gst_element_factory_make("udpsink", "sink");
+
 
   /* Create the empty pipeline */
   pipeline = gst_pipeline_new ("test-pipeline");
@@ -75,19 +77,7 @@ int main (int argc, char *argv[])
   /* Build the pipeline */
   gst_bin_add_many (GST_BIN (pipeline), source, sink, filter, converter, NULL);
   
-  if (gst_element_link (source, filter) != TRUE) {
-    g_printerr ("Elements could not be linked.\n");
-    gst_object_unref (pipeline);
-    return -1;
-  }
-
-  if (gst_element_link (filter, converter) != TRUE) {
-    g_printerr ("Elements could not be linked.\n");
-    gst_object_unref (pipeline);
-    return -1;
-  }
-
-  if (gst_element_link (converter, sink) != TRUE) {
+  if (gst_element_link_many (source, filter, converter, sink, NULL) != TRUE) {
     g_printerr ("Elements could not be linked.\n");
     gst_object_unref (pipeline);
     return -1;
@@ -95,6 +85,9 @@ int main (int argc, char *argv[])
 
   /* Modify the source's properties */
   g_object_set (source, "pattern", 1, NULL);
+  /* Set udpsink ip and port */
+  g_object_set (sink, "host", remote_ip.c_str(), NULL);
+  g_object_set (sink, "port", static_cast<gint>(port), NULL);
 
   /* Start playing */
   ret = gst_element_set_state (pipeline, GST_STATE_PLAYING);
