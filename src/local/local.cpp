@@ -1,17 +1,50 @@
+/**
+ * @file local.cpp
+ * @author  Federico Roux (federico.roux@globant.com)
+ * @brief   Basic example of C++ code to create a local upstream.
+ * @version 0.1
+ * @date 2022-11-23
+ * 
+ */
+
+#include <iostream>
 #include <string>
 #include <gst/gst.h>
 
+#include <arpa/inet.h>
 
-int
-main (int argc, char *argv[])
+/**
+ * @brief validate ip ipv4 format
+ * 
+ * @param ip 
+ * @return true valid IP
+ * @return false unvalid IP
+ * 
+ * @author federico.roux@globant.com
+ */
+bool validate_ip(std::string ip) {
+  struct sockaddr_in sa;
+  auto res = inet_pton(AF_INET, ip.c_str(),  &(sa.sin_addr));
+  return res != 0;
+}
+
+/**
+ * @brief main app
+ * 
+ * @param argc 
+ * @param argv 1st parameter is optional remote IP
+ * @return int 
+ */
+
+int main (int argc, char *argv[])
 {
   GstElement *pipeline, *source, *sink, *filter, *converter;
   GstBus *bus;
   GstMessage *msg;
   GstStateChangeReturn ret;
 
-  std::string remote_ip{"0.0.0.0"};
 
+  std::string remote_ip{"0.0.0.0"};
 
   if(argc <= 1) {
     remote_ip = "127.0.0.1";
@@ -20,6 +53,13 @@ main (int argc, char *argv[])
     remote_ip = argv[1];
   }
 
+  if(validate_ip(remote_ip)) {
+    std::cout << "Remote IP: " << remote_ip << std::endl;
+  }
+  else {
+    std::cout << "Not valid IP. Exiting..." << std::endl;
+    return 1;
+  }
 
 
   /* Initialize GStreamer */
