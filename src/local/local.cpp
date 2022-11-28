@@ -22,7 +22,7 @@ typedef struct {
   GstElement *rtp_enc;
 } pipeline_t;
 
-static void pad_added_handler (GstElement *src, GstPad *new_pad, pipeline_t *data);
+static void cb_pad_added_handler (GstElement *src, GstPad *new_pad, pipeline_t *data);
 
 /**
  * @brief main app
@@ -105,14 +105,13 @@ int main (int argc, char *argv[])
 
   /* Modify the source's properties */
   g_object_set (p.source, "pattern", 1, NULL);
+  
   /* Set udpsink ip and port */
   g_object_set (p.sink, "host", remote_ip.c_str(), NULL);
   g_object_set (p.sink, "port", static_cast<gint>(port), NULL);
 
-
 /* Connect to the pad-added signal */
-  g_signal_connect (p.deco, "pad-added", G_CALLBACK (pad_added_handler), &p);
-
+  g_signal_connect (p.deco, "pad-added", G_CALLBACK (cb_pad_added_handler), &p);
 
   /* Start playing */
   ret = gst_element_set_state (p.pipeline, GST_STATE_PLAYING);
@@ -162,7 +161,7 @@ int main (int argc, char *argv[])
 }
 
 /* This function will be called by the pad-added signal */
-static void pad_added_handler (GstElement *src, GstPad *new_pad, pipeline_t *data) {
+static void cb_pad_added_handler (GstElement *src, GstPad *new_pad, pipeline_t *data) {
   GstPad *sink_pad = NULL;
   GstPad *videosink_pad = gst_element_get_static_pad (data->h264enc, "sink");
 
@@ -193,11 +192,14 @@ static void pad_added_handler (GstElement *src, GstPad *new_pad, pipeline_t *dat
     sink_pad = videosink_pad;
   }
   else {
-    g_print ("It has type '%s' which is not raw audio. Ignoring.\n", new_pad_type);
+    g_print ("It has type '%s' which is not raw video. Ignoring.\n", new_pad_type);
     if (new_pad_caps != NULL) gst_caps_unref (new_pad_caps);
     if (videosink_pad != NULL) gst_object_unref (videosink_pad);
     return;
   }
+
+  std::cout << "new pad name: " << gst_element_get_name(new_pad) << std::endl;
+  std::cout << "sink pad name: " << gst_element_get_name(sink_pad) << std::endl;
 
   /* Attempt the link */
   ret = gst_pad_link (new_pad, sink_pad);
