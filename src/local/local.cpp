@@ -16,7 +16,6 @@ typedef struct {
   GstElement *pipeline;
   GstElement *source;
   GstElement *sink;
-  GstElement *filter;
   GstElement *deco;
   GstElement *h264enc;
   GstElement *rtp_enc;
@@ -82,7 +81,7 @@ int main (int argc, char *argv[])
   /* Create the empty pipeline */
   p.pipeline = gst_pipeline_new ("test-pipeline");
 
-  if (!p.pipeline || !p.source || !p.filter || !p.deco || !p.h264enc || !p.rtp_enc || !p.sink) {
+  if (!p.pipeline || !p.source || !p.deco || !p.h264enc || !p.rtp_enc || !p.sink) {
     g_printerr ("Not all elements could be created.\n");
     return -1;
   }
