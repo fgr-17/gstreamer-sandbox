@@ -73,7 +73,6 @@ int main (int argc, char *argv[])
 
   /* Create the elements */
   p.source = gst_element_factory_make ("videotestsrc", "source");
-  p.filter = gst_element_factory_make("vertigotv", "filter");
   p.deco = gst_element_factory_make("decodebin", "deco");
   p.h264enc = gst_element_factory_make("x264enc", "enc");
   p.rtp_enc = gst_element_factory_make("rtph264pay", "rtp_enc");
