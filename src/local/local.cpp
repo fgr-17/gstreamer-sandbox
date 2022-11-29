@@ -89,9 +89,9 @@ int main (int argc, char *argv[])
   }
 
   /* Build the pipeline */
-  gst_bin_add_many (GST_BIN (p.pipeline), p.source, p.filter, p.deco, p.h264enc, p.rtp_enc, p.sink, NULL);
+  gst_bin_add_many (GST_BIN (p.pipeline), p.source, p.deco, p.h264enc, p.rtp_enc, p.sink, NULL);
   
-  if (gst_element_link_many (p.source, p.filter, p.deco, NULL) != TRUE) {
+  if (gst_element_link_many (p.source, p.deco, NULL) != TRUE) {
     g_printerr ("Elements could not be linked.\n");
     gst_object_unref (p.pipeline);
     return -1;
