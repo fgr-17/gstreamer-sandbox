@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(GSTREAMER_UPD_EXAMPLE)
+project(gstreamer_udp_test)
 
 ### C++
 enable_language(CXX)
