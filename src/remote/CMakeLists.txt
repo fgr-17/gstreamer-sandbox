@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(gstreamer_udp_test)
+set(app_name gstreamer-test)
+
+project(GSTREAMER_TUTORIALS)
 
 ### C++
 enable_language(CXX)
@@ -10,11 +12,15 @@ set(CMAKE_CXX_EXTENSIONS OFF CACHE BOOL "enable/disable compiler specific extens
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -W -Wall -Wextra")
 
+add_executable (${app_name}
+main.cpp)
+
+message("App name: " ${app_name})
+
 find_package(PkgConfig REQUIRED)
 
 pkg_check_modules(GSTREAMER REQUIRED IMPORTED_TARGET gstreamer-1.0)
 message("GSTREAMER_FOUND:" ${GSTREAMER_FOUND})
 message("GSTREAMER_LINK_LIBRARIES: " ${GSTREAMER_LINK_LIBRARIES})
-
-add_subdirectory(local)
-add_subdirectory(common)
+target_include_directories(${app_name} PRIVATE  ${GSTREAMER_INCLUDE_DIRS})
+target_link_libraries(${app_name} ${GSTREAMER_LINK_LIBRARIES})
