@@ -17,4 +17,5 @@ message("GSTREAMER_FOUND:" ${GSTREAMER_FOUND})
 message("GSTREAMER_LINK_LIBRARIES: " ${GSTREAMER_LINK_LIBRARIES})
 
 add_subdirectory(local)
+add_subdirectory(remote)
 add_subdirectory(common)
