@@ -1,66 +1,69 @@
+////////////////////////////////////////////////////////////////////////////////
 /**
- * @file local.cpp
+ * @file    remote.cpp
  * @author  Federico Roux (federico.roux@globant.com)
- * @brief   Basic example of C++ code to create a remote upstream.
+ * @brief   Remote App of C++ code to create a remote downstream.
  * @version 0.1
- * @date 2022-11-23
- * 
+ * @date    2022-11-23
  */
+////////////////////////////////////////////////////////////////////////////////
+/**
+ * @author  Pedro Shinyashiki (pedro.shinyashiki@globant.com)
+ * @brief   First Remote Gstreamer Pipeline C++
+ * @version 0.2
+ * @date    2022-12-07
+ * */
+////////////////////////////////////////////////////////////////////////////////
+#define VERSION 0.2
+////////////////////////////////////////////////////////////////////////////////
+/*
+Scripts:
+Local:
+gst-launch-1.0 -v filesrc location = $FILE ! decodebin ! x264enc ! rtph264pay ! udpsink host=$REMOTE_IP port=$PORT
+Remote:
+gst-launch-1.0 udpsrc port={self._port} ! application/x-rtp, encoding-name=H264, payload=96  ! \
+                              rtph264depay ! avdec_h264 ! autovideoconvert ! appsink  emit-signals=True
+*/
 
+////////////////////////////////////////////////////////////////////////////////
 #include <iostream>
 #include <string>
 #include <gst/gst.h>
 #include <utils.h>
-
+////////////////////////////////////////////////////////////////////////////////
 typedef struct {
   GstElement *pipeline;
   GstElement *source;
   GstElement *sink;
-  GstElement *deco;
-  GstElement *h264enc;
-  GstElement *rtp_enc;
+  GstElement *conv;
+  GstElement *h264dec;
+  GstElement *rtp_dec;
+  GstCaps    *filtercaps;
 } pipeline_t;
 
-static void cb_pad_added_handler (GstElement *src, GstPad *new_pad, pipeline_t *data);
-
-/**
- * @brief main app
- * 
- * @param argc 
- * @param argv 1st parameter is optional remote IP
- * @return int 
- */
-
+////////////////////////////////////////////////////////////////////////////////
 int main (int argc, char *argv[])
 {
+  std::cout << "**************************************************"<< std::endl;
+  std::cout << "*************** Remote App v. " << VERSION << " ****************" << std::endl;
+  std::cout << "**************************************************"<< std::endl;
 
   pipeline_t p;
   GstBus *bus;
   GstMessage *msg;
   GstStateChangeReturn ret;
 
-  std::string remote_ip{"0.0.0.0"};
   gint port = 0;
 
-  if(argc <= 2) {
-    remote_ip = "127.0.0.1";
+  if(argc <= 1) {
     port = 4000;
   }
   else {
-    remote_ip = argv[1];
-    port = std::stoi(argv[2]);
-  }
-
-  if(utils::validate_ip(remote_ip)) {
-    std::cout << "Remote IP: " << remote_ip << std::endl;
-  }
-  else {
-    std::cout << "Not valid IP. Exiting..." << std::endl;
-    exit(EXIT_FAILURE);
+    port = std::stoi(argv[1]);
   }
 
   if(utils::validate_port(port)) {
-    std::cout << "Port: " << port << std::endl;
+    std::cout << "Running on Port: " << port << std::endl;
   }
   else {
     std::cout << "Not valid port. Exiting..." << std::endl;
@@ -71,45 +74,54 @@ int main (int argc, char *argv[])
   gst_init (&argc, &argv);
 
   /* Create the elements */
-  p.source = gst_element_factory_make ("videotestsrc", "source");
-  p.deco = gst_element_factory_make("decodebin", "deco");
-  p.h264enc = gst_element_factory_make("x264enc", "enc");
-  p.rtp_enc = gst_element_factory_make("rtph264pay", "rtp_enc");
-  p.sink = gst_element_factory_make("udpsink", "sink");
-
+  /*
+  gst-launch-1.0 udpsrc port=PORT ! application/x-rtp, encoding-name=H264, payload=96 ! \
+              rtph264depay ! avdec_h264 ! autovideoconvert ! autovideosink
+  */
+  p.source = gst_element_factory_make ("udpsrc", "source");
+  ASSERT_ELEMENT(p.source, "udpsrc");
+  p.filtercaps = gst_caps_new_simple("application/x-rtp",
+    //"media", G_TYPE_STRING, "video",
+    "payload", G_TYPE_INT, 96,
+    //"clock-rate", G_TYPE_INT, 90000,
+    "encoding-name", G_TYPE_STRING, "H264", NULL);
+  ASSERT_ELEMENT(p.filtercaps, "filtercaps");
+  g_object_set(G_OBJECT(p.source), "caps", p.filtercaps, NULL);
+  gst_caps_unref(p.filtercaps);
+  p.rtp_dec = gst_element_factory_make("rtph264depay", "rtp_dec");
+  ASSERT_ELEMENT(p.rtp_dec, "rtph264depay");
+  p.h264dec = gst_element_factory_make("avdec_h264", "dec");
+  ASSERT_ELEMENT(p.h264dec, "avdec_h264");
+  p.conv = gst_element_factory_make("autovideoconvert", "conv");
+  ASSERT_ELEMENT(p.conv, "autovideoconvert");
+  p.sink = gst_element_factory_make("autovideosink", "sink");
+  ASSERT_ELEMENT(p.sink, "autovideosink");
 
   /* Create the empty pipeline */
   p.pipeline = gst_pipeline_new ("test-pipeline");
 
-  if (!p.pipeline || !p.source || !p.deco || !p.h264enc || !p.rtp_enc || !p.sink) {
+  if (!p.pipeline || !p.source || !p.rtp_dec || !p.h264dec || !p.conv || !p.sink) {
     g_printerr ("Not all elements could be created.\n");
     return -1;
   }
 
   /* Build the pipeline */
-  gst_bin_add_many (GST_BIN (p.pipeline), p.source, p.deco, p.h264enc, p.rtp_enc, p.sink, NULL);
+  gst_bin_add_many (GST_BIN (p.pipeline), p.source, p.rtp_dec, p.h264dec, p.conv, p.sink, NULL);
   
-  if (gst_element_link_many (p.source, p.deco, NULL) != TRUE) {
-    g_printerr ("Elements could not be linked.\n");
+  if (gst_element_link_many (p.source, p.rtp_dec, NULL) != TRUE) {
+    g_printerr ("First Elements could not be linked.\n");
     gst_object_unref (p.pipeline);
     return -1;
   }
 
-  if (gst_element_link_many (p.h264enc, p.rtp_enc, p.sink, NULL) != TRUE) {
-    g_printerr ("Elements could not be linked.\n");
+  if (gst_element_link_many (p.rtp_dec, p.h264dec, p.conv, p.sink, NULL) != TRUE) {
+    g_printerr ("Next Elements could not be linked.\n");
     gst_object_unref (p.pipeline);
     return -1;
   }
 
-  /* Modify the source's properties */
-  g_object_set (p.source, "pattern", 1, NULL);
-  
   /* Set udpsink ip and port */
-  g_object_set (p.sink, "host", remote_ip.c_str(), NULL);
-  g_object_set (p.sink, "port", static_cast<gint>(port), NULL);
-
-/* Connect to the pad-added signal */
-  g_signal_connect (p.deco, "pad-added", G_CALLBACK (cb_pad_added_handler), &p);
+  g_object_set (p.source, "port", static_cast<gint>(port), NULL);
 
   /* Start playing */
   ret = gst_element_set_state (p.pipeline, GST_STATE_PLAYING);
@@ -157,56 +169,4 @@ int main (int argc, char *argv[])
   gst_object_unref (p.pipeline);
   return 0;
 }
-
-/* This function will be called by the pad-added signal */
-static void cb_pad_added_handler (GstElement *src, GstPad *new_pad, pipeline_t *data) {
-  GstPad *sink_pad = NULL;
-  GstPad *videosink_pad = gst_element_get_static_pad (data->h264enc, "sink");
-
-  GstPadLinkReturn ret;
-  GstCaps *new_pad_caps = NULL;
-  GstStructure *new_pad_struct = NULL;
-  const gchar *new_pad_type = NULL;
-
-  std::cout << "received pad is pad?: " << GST_IS_PAD(new_pad) << std::endl;
-  std::cout << "videosink pad is pad?: " << GST_IS_PAD(videosink_pad) << std::endl;
-
-  g_print ("Received new pad '%s' from '%s':\n", GST_PAD_NAME (new_pad), GST_ELEMENT_NAME (src));
-
-  /* If our converter is already linked, we have nothing to do here */
-  if (gst_pad_is_linked (videosink_pad)) {
-    g_print ("We are already linked. Ignoring.\n");
-    /* Unreference the new pad's caps, if we got them */
-    if (new_pad_caps != NULL) gst_caps_unref (new_pad_caps);
-    if (videosink_pad != NULL) gst_object_unref (videosink_pad);
-    return;
-  }
-
-  /* Check the new pad's type */
-  new_pad_caps = gst_pad_get_current_caps (new_pad);
-  new_pad_struct = gst_caps_get_structure (new_pad_caps, 0);
-  new_pad_type = gst_structure_get_name (new_pad_struct);
-  if (g_str_has_prefix (new_pad_type, "video/x-raw")) {
-    sink_pad = videosink_pad;
-  }
-  else {
-    g_print ("It has type '%s' which is not raw video. Ignoring.\n", new_pad_type);
-    if (new_pad_caps != NULL) gst_caps_unref (new_pad_caps);
-    if (videosink_pad != NULL) gst_object_unref (videosink_pad);
-    return;
-  }
-
-  std::cout << "new pad name: " << gst_element_get_name(new_pad) << std::endl;
-  std::cout << "sink pad name: " << gst_element_get_name(sink_pad) << std::endl;
-
-  /* Attempt the link */
-  ret = gst_pad_link (new_pad, sink_pad);
-  if (GST_PAD_LINK_FAILED (ret)) {
-    g_print ("Type is '%s' but link failed.\n", new_pad_type);
-  } else {
-    g_print ("Link succeeded (type '%s').\n", new_pad_type);
-  }
-
-  if (new_pad_caps != NULL) gst_caps_unref (new_pad_caps);
-  if (videosink_pad != NULL) gst_object_unref (videosink_pad);
-}
+////////////////////////////////////////////////////////////////////////////////
