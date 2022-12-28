@@ -14,7 +14,14 @@
  * @date    2022-12-07
  * */
 ////////////////////////////////////////////////////////////////////////////////
-#define VERSION 0.2
+/**
+ * @author  Pedro Shinyashiki (pedro.shinyashiki@globant.com)
+ * @brief   Extract Images from the video stream and send to a socket
+ * @version 0.3
+ * @date    2022-12-27
+ * */
+////////////////////////////////////////////////////////////////////////////////
+#define VERSION 0.3
 ////////////////////////////////////////////////////////////////////////////////
 /*
 Scripts:
@@ -24,7 +31,11 @@ Remote:
 gst-launch-1.0 udpsrc port={self._port} ! application/x-rtp, encoding-name=H264, payload=96  ! \
                               rtph264depay ! avdec_h264 ! autovideoconvert ! appsink  emit-signals=True
 */
-
+/*
+rtpjpegdepay ! \
+ jpegdec ! \
+ autovideosink
+ */
 ////////////////////////////////////////////////////////////////////////////////
 #include <iostream>
 #include <string>
@@ -34,6 +45,7 @@ gst-launch-1.0 udpsrc port={self._port} ! application/x-rtp, encoding-name=H264,
 typedef struct {
   GstElement *pipeline;
   GstElement *source;
+  GstElement *enc_img;
   GstElement *sink;
   GstElement *conv;
   GstElement *h264dec;
@@ -94,19 +106,24 @@ int main (int argc, char *argv[])
   ASSERT_ELEMENT(p.h264dec, "avdec_h264");
   p.conv = gst_element_factory_make("autovideoconvert", "conv");
   ASSERT_ELEMENT(p.conv, "autovideoconvert");
-  p.sink = gst_element_factory_make("autovideosink", "sink");
-  ASSERT_ELEMENT(p.sink, "autovideosink");
+
+  p.enc_img = gst_element_factory_make("jpegenc", "enc");
+  ASSERT_ELEMENT(p.enc_img, "jpegenc");
+
+  p.sink = gst_element_factory_make("multifilesink", "sink");
+  ASSERT_ELEMENT(p.sink, "multifilesink");
+  g_object_set(p.sink, "location", "out-%05d.jpg", NULL);
 
   /* Create the empty pipeline */
   p.pipeline = gst_pipeline_new ("test-pipeline");
 
-  if (!p.pipeline || !p.source || !p.rtp_dec || !p.h264dec || !p.conv || !p.sink) {
+  if (!p.pipeline || !p.source || !p.rtp_dec || !p.h264dec || !p.conv || !p.enc_img || !p.sink) {
     g_printerr ("Not all elements could be created.\n");
     return -1;
   }
 
   /* Build the pipeline */
-  gst_bin_add_many (GST_BIN (p.pipeline), p.source, p.rtp_dec, p.h264dec, p.conv, p.sink, NULL);
+  gst_bin_add_many (GST_BIN (p.pipeline), p.source, p.rtp_dec, p.h264dec, p.conv, p.enc_img, p.sink, NULL);
   
   if (gst_element_link_many (p.source, p.rtp_dec, NULL) != TRUE) {
     g_printerr ("First Elements could not be linked.\n");
@@ -114,7 +131,7 @@ int main (int argc, char *argv[])
     return -1;
   }
 
-  if (gst_element_link_many (p.rtp_dec, p.h264dec, p.conv, p.sink, NULL) != TRUE) {
+  if (gst_element_link_many (p.rtp_dec, p.h264dec, p.conv, p.enc_img, p.sink, NULL) != TRUE) {
     g_printerr ("Next Elements could not be linked.\n");
     gst_object_unref (p.pipeline);
     return -1;
