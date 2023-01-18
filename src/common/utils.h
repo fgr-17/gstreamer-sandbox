@@ -11,6 +11,9 @@
 #include <string>
 #include <stdint.h>
 
+#define IS_VALID            true
+#define IS_INVALID          false
+
 namespace utils {
 
     static constexpr uint16_t port_range_min = 0;
@@ -20,5 +23,15 @@ namespace utils {
     bool validate_port(uint16_t p);
 
 };
+
+#define ASSERT_ELEMENT(gstelmnt, name)                          \
+    {                                                           \
+        if (gstelmnt == NULL)                                   \
+        {                                                       \
+            g_printerr("Could not create " name " element");    \
+            return IS_INVALID;                                  \
+        }                                                       \
+    }
+
 
 #endif // __UTILS_H
