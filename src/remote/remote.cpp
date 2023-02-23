@@ -16,32 +16,50 @@
 ////////////////////////////////////////////////////////////////////////////////
 /**
  * @author  Pedro Shinyashiki (pedro.shinyashiki@globant.com)
- * @brief   Extract Images from the video stream and send to a socket
+ * @brief   Extract Images from the video stream and send to a socket using appsink
  * @version 0.3
- * @date    2022-12-27
+ * @date    2023-02-23
  * */
 ////////////////////////////////////////////////////////////////////////////////
 #define VERSION 0.3
 ////////////////////////////////////////////////////////////////////////////////
 /*
+How To test:
+1) Run gstreamer-remote (this app)
+2) Run socket client: python3 socket_client.py
+3) Run the gstreamer script:
+  FILE=Legend.mp4; REMOTE_IP=127.0.0.1; PORT=4000;
+  gst-launch-1.0 -v filesrc location = $FILE ! decodebin ! x264enc ! rtph264pay ! udpsink host=$REMOTE_IP port=$PORT
+4) You will see JPG files numbered in the same folder where is running the python script
+5) Enjoy
+////////////////////////////////////////////////////////////////////////////////
 Scripts:
 Local:
+FILE=Legend.mp4; REMOTE_IP=127.0.0.1; PORT=4000;
 gst-launch-1.0 -v filesrc location = $FILE ! decodebin ! x264enc ! rtph264pay ! udpsink host=$REMOTE_IP port=$PORT
 Remote:
 gst-launch-1.0 udpsrc port={self._port} ! application/x-rtp, encoding-name=H264, payload=96  ! \
                               rtph264depay ! avdec_h264 ! autovideoconvert ! appsink  emit-signals=True
 */
-/*
-rtpjpegdepay ! \
- jpegdec ! \
- autovideosink
- */
 ////////////////////////////////////////////////////////////////////////////////
 #include <iostream>
 #include <string>
 #include <gst/gst.h>
+#include <gst/app/gstappsink.h>   //For appsink
 #include <utils.h>
+#include <thread>                 //For thread
+#include <iomanip>                //For setfill
+#include <sstream>                //For stringstream
+#include <vector>                 //For vector
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h>               //For write
 ////////////////////////////////////////////////////////////////////////////////
+#define SERVER_PORT_DATA      4007 //htons??
+#define SERVER_PORT_HANDSHAKE 4008
+////////////////////////////////////////////////////////////////////////////////
+
 typedef struct {
   GstElement *pipeline;
   GstElement *source;
@@ -53,6 +71,14 @@ typedef struct {
   GstCaps    *filtercaps;
 } pipeline_t;
 
+pipeline_t p;                       //Accessed by the thread
+std::vector<uint8_t> appsinkbuffer;
+std::vector<uint32_t> buffersize;
+
+pthread_mutex_t mtx_buff;
+std::thread appsink_thread, socket_thread;
+bool m_isRunning = true;
+
 ////////////////////////////////////////////////////////////////////////////////
 int main (int argc, char *argv[])
 {
@@ -60,7 +86,7 @@ int main (int argc, char *argv[])
   std::cout << "*************** Remote App v. " << VERSION << " ****************" << std::endl;
   std::cout << "**************************************************"<< std::endl;
 
-  pipeline_t p;
+  
   GstBus *bus;
   GstMessage *msg;
   GstStateChangeReturn ret;
@@ -110,10 +136,169 @@ int main (int argc, char *argv[])
   p.enc_img = gst_element_factory_make("jpegenc", "enc");
   ASSERT_ELEMENT(p.enc_img, "jpegenc");
 
-  p.sink = gst_element_factory_make("multifilesink", "sink");
-  ASSERT_ELEMENT(p.sink, "multifilesink");
-  g_object_set(p.sink, "location", "out-%05d.jpg", NULL);
+  // p.enc_img = gst_element_factory_make("pngenc", "enc");
+  // ASSERT_ELEMENT(p.enc_img, "pngenc");
 
+  // //Write directly to a file
+  // p.sink = gst_element_factory_make("multifilesink", "sink");
+  // ASSERT_ELEMENT(p.sink, "multifilesink");
+  // g_object_set(p.sink, "location", "out-%05d.jpg", NULL);
+
+  //Appsink
+  p.sink = gst_element_factory_make("appsink", "extract_images_appsink");
+  ASSERT_ELEMENT(p.sink, "appsink"); // Checks if NULL
+  g_object_set (G_OBJECT (p.sink), "emit-signals", FALSE, "sync", FALSE, NULL);
+
+////////////////////////////////////////////////////////////////////////////////
+  // Thread to read from the appsink buffer
+  try
+  {
+    appsink_thread = std::thread([]() 
+    {
+      int filecount = 0;
+      std::cout << "------ START AppSink Thread ------" << std::endl;
+      while (m_isRunning)
+      {
+        GstSample* sample = gst_app_sink_pull_sample(GST_APP_SINK_CAST(p.sink));
+        if(sample != NULL)
+        {
+          GstBuffer * buffer  = gst_sample_get_buffer (sample);
+          if (buffer == NULL)
+          {
+            continue;
+          }
+          gsize datalen = gst_buffer_get_size(buffer);
+          // Extract buffer
+          uint8_t *rawData = (uint8_t *) malloc(datalen);
+          if (rawData == NULL) {
+            std::cout << " build_pipeline() allocation fails" << std::endl;
+            return false;
+          }
+          memset(rawData, 0, datalen);
+          gst_buffer_extract(buffer, 0, rawData, datalen);
+          //Append to a local buffer
+          pthread_mutex_lock(&mtx_buff);
+          appsinkbuffer.insert( appsinkbuffer.end(), rawData, rawData + datalen );
+          buffersize.push_back(datalen);
+          pthread_mutex_unlock(&mtx_buff);
+          ////////////////////////////////////
+          // //Write to files
+          // FILE* pFile;
+          // std::stringstream filename;
+          // std::string fname;
+          // filename << "file_" << std::setw(2) << std::setfill('0') << filecount << ".raw";
+          // fname = std::string (filename.str());
+          // pFile = fopen(fname.c_str(), "wb");
+          // fwrite(rawData, datalen, 1, pFile);
+          // fclose(pFile);
+          ////////////////////////////////////
+          free(rawData);
+          gst_sample_unref(sample);
+          filecount++;
+        }
+      }
+      std::cout << "------ END AppSink Thread ------" << std::endl;
+      m_isRunning=false;
+      return true;
+    });
+
+    appsink_thread.detach();
+  }
+  catch (std::exception &e)
+  {
+      std::cout << "Appsink - thread start error: " << e.what() << std::endl;
+      std::cout << "------ Substhread start error ------" << std::endl;
+  }
+////////////////////////////////////////////////////////////////////////////////
+  // Thread to handle the socket and send frames
+  try
+  {
+    socket_thread = std::thread([]() 
+    {
+      //Socket
+      int server_socket, client_fd;
+      struct sockaddr_in server_addr, client_addr;
+
+      // Creating socket file descriptor
+      if ((server_socket = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+          perror("socket failed");
+          exit(EXIT_FAILURE);
+      }
+      
+      server_addr.sin_family = AF_INET;
+      server_addr.sin_port = htons(SERVER_PORT_DATA);
+      server_addr.sin_addr.s_addr = INADDR_ANY;
+
+      if (bind(server_socket, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
+          perror("bind failed");
+          exit(EXIT_FAILURE);
+      }
+      if (listen(server_socket, 1) < 0) {
+          perror("listen");
+          exit(EXIT_FAILURE);
+      }
+
+      socklen_t sin_size=sizeof(client_addr);
+      client_fd=accept(server_socket,(struct sockaddr*)&client_addr, &sin_size);
+      //std::cout << "client_fd:" << client_fd << std::endl;
+
+      if (client_fd < 0) {
+        perror("accept");
+        exit(EXIT_FAILURE);
+      };
+      printf("Got connection from %s port %d\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
+
+      int filecount2 = 0;
+      std::cout << "------ START Socket Thread ------" << std::endl;
+      uint32_t datalen2=0;
+      uint8_t *rawData2;
+      while (true){
+        datalen2=0;
+        //////////////////////////////
+        //Extract from a local buffer                                                                                                                    
+        pthread_mutex_lock(&mtx_buff);
+        if ( ! buffersize.empty()) {
+          datalen2=buffersize.front();
+          buffersize.erase(buffersize.begin(),buffersize.begin()+1);
+        }
+        if (datalen2 != 0) {
+          rawData2 = (uint8_t *) malloc(datalen2);
+          memset(rawData2, 0, datalen2);
+          rawData2=appsinkbuffer.data();
+          std::cout << "[Socket Thread] frame:" << filecount2 << " lenght: " << datalen2 << std::endl;
+          appsinkbuffer.erase( appsinkbuffer.begin(), appsinkbuffer.begin() + datalen2 );
+          //Send Frame Number, Frame Lenght and Frame
+          send(client_fd, &(filecount2), sizeof(filecount2),0);
+          send(client_fd, &(datalen2), sizeof(datalen2),0);
+          send(client_fd, rawData2, datalen2, 0);
+          //std::cout << "Sent: Frame: "<< filecount2 << "[" << sizeof(filecount2) << "] with lenght: " << datalen2 << "[" << sizeof(datalen2) << "]" << std::endl;
+          filecount2++;
+        }
+        pthread_mutex_unlock(&mtx_buff);
+        //////////////////////////////  
+        // //Write to files
+        // FILE* pFile;
+        // std::stringstream filename;
+        // std::string fname;
+        // filename << "file_" << std::setw(2) << std::setfill('0') << filecount2 << ".jpg";
+        // fname = std::string (filename.str());
+        // pFile = fopen(fname.c_str(), "wb");
+        // fwrite(rawData2, datalen2, 1, pFile);
+        // fclose(pFile);
+        //////////////////////////////  
+        g_usleep(100000);
+      }
+      std::cout << "------ END Socket Thread ------" << std::endl;
+      return true;
+    });
+    socket_thread.detach();
+  }
+  catch (std::exception &e)
+  {
+      std::cout << "Socket - thread start error: " << e.what() << std::endl;
+      std::cout << "------ Substhread start error ------" << std::endl;
+  }
+////////////////////////////////////////////////////////////////////////////////
   /* Create the empty pipeline */
   p.pipeline = gst_pipeline_new ("test-pipeline");
 
