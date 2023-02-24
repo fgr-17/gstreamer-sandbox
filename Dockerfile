@@ -1,18 +1,20 @@
-FROM debian:stable-slim
+FROM python:3.9-slim
 
-RUN apt-get update && apt-get install -y libgstreamer1.0-dev \
-libgstreamer-plugins-base1.0-dev \
-libgstreamer-plugins-bad1.0-dev \
-gstreamer1.0-plugins-base \
-gstreamer1.0-plugins-good \
-gstreamer1.0-plugins-bad \
-gstreamer1.0-plugins-ugly \
-gstreamer1.0-libav \
-gstreamer1.0-doc \
-gstreamer1.0-tools \
-gstreamer1.0-x \
-gstreamer1.0-alsa \
-gstreamer1.0-gl \
-gstreamer1.0-gtk3 \
-gstreamer1.0-qt5 \
-gstreamer1.0-pulseaudio
+COPY ./src/packages packages
+
+RUN apt update 
+RUN xargs -a packages apt install -y
+
+RUN printf "\nalias ls='ls --color=auto'\n" >> ~/.bashrc
+RUN printf "\nalias ll='ls -alF'\n" >> ~/.bashrc
+
+
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+COPY Socket-Client/requirements.txt .
+
+RUN python -m pip install --upgrade pip && \
+    pip install -r requirements.txt
+
+ENV PACKAGE_PATH="/workspace/src/package"

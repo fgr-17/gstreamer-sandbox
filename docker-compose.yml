@@ -1,9 +1,25 @@
 version: "3.3"
 
 services:
-  gstreamer-container:
-    build: ./
-    container_name: gstreamer-container
+  gst-container:
+    build: ./src
+    container_name: gst-container
+    volumes:
+      - ./src:/workspace
+    stdin_open: true
+    tty: true
+
+  python-container:
+    build: ./Socket-Client
+    container_name: python-container
+    volumes:
+      - ./Socket-Client:/workspace
+    stdin_open: true
+    tty: true
+
+  gst-py-container:
+    build: .
+    container_name: gst-py-container
     volumes:
       - .:/workspace
     stdin_open: true
