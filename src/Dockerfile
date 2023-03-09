@@ -1,9 +1,10 @@
 FROM gcc:latest
 
-COPY ./packages packages
+COPY packages packages
+COPY installPackages.sh installPackages.sh
 
 RUN apt update 
-RUN xargs -a packages apt install -y
+RUN ./installPackages.sh
 
 RUN printf "\nalias ls='ls --color=auto'\n" >> ~/.bashrc
 RUN printf "\nalias ll='ls -alF'\n" >> ~/.bashrc
