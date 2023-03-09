@@ -1,9 +1,10 @@
 FROM python:3.9-slim
 
 COPY ./src/packages packages
+COPY ./src/installPackages.sh installPackages.sh
 
 RUN apt update 
-RUN xargs -a packages apt install -y
+RUN ./installPackages.sh
 
 RUN printf "\nalias ls='ls --color=auto'\n" >> ~/.bashrc
 RUN printf "\nalias ll='ls -alF'\n" >> ~/.bashrc
