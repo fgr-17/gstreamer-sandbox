@@ -15,3 +15,4 @@ gstreamer1.0-qt5
 gstreamer1.0-pulseaudio
 cmake
 g++
+net-tools
