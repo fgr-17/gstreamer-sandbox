@@ -136,8 +136,8 @@ int main (int argc, char *argv[])
   p.enc_img = gst_element_factory_make("jpegenc", "enc");
   ASSERT_ELEMENT(p.enc_img, "jpegenc");
 
-  // p.enc_img = gst_element_factory_make("pngenc", "enc");
-  // ASSERT_ELEMENT(p.enc_img, "pngenc");
+  //p.enc_img = gst_element_factory_make("pngenc", "enc");
+  //ASSERT_ELEMENT(p.enc_img, "pngenc");
 
   // //Write directly to a file
   // p.sink = gst_element_factory_make("multifilesink", "sink");
@@ -286,7 +286,7 @@ int main (int argc, char *argv[])
         // fwrite(rawData2, datalen2, 1, pFile);
         // fclose(pFile);
         //////////////////////////////  
-        g_usleep(100000);
+        //g_usleep(100000);
       }
       std::cout << "------ END Socket Thread ------" << std::endl;
       return true;
