@@ -37,4 +37,4 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         f.close()
         if raw_frame != 0 :
             print(f"Rcv Frame: {frame} - with lenght: {size}")
-        time.sleep(0.1)
+        #time.sleep(0.1)
