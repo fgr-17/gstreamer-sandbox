@@ -3,7 +3,8 @@ FROM gcc:latest
 COPY packages packages
 COPY installPackages.sh installPackages.sh
 
-RUN apt update 
+RUN apt-get update
+RUN chmod +x installPackages.sh
 RUN ./installPackages.sh
 
 RUN printf "\nalias ls='ls --color=auto'\n" >> ~/.bashrc

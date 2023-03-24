@@ -4,5 +4,5 @@ FILE="packages"
 
 while IFS= read -r line
 do
-  apt install -y "$line"
+  apt-get install -y "$line"
 done < $FILE
