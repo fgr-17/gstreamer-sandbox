@@ -14,13 +14,6 @@
  * @date    2022-12-07
  * */
 ////////////////////////////////////////////////////////////////////////////////
-<<<<<<< HEAD
-#define VERSION 0.2
-////////////////////////////////////////////////////////////////////////////////
-/*
-Scripts:
-Local:
-=======
 /**
  * @author  Pedro Shinyashiki (pedro.shinyashiki@globant.com)
  * @brief   Extract Images from the video stream and send to a socket using appsink
@@ -43,27 +36,15 @@ How To test:
 Scripts:
 Local:
 FILE=Legend.mp4; REMOTE_IP=127.0.0.1; PORT=4000;
->>>>>>> f38273b683b00f79f2e29cf494be64a13855fd32
 gst-launch-1.0 -v filesrc location = $FILE ! decodebin ! x264enc ! rtph264pay ! udpsink host=$REMOTE_IP port=$PORT
 Remote:
 gst-launch-1.0 udpsrc port={self._port} ! application/x-rtp, encoding-name=H264, payload=96  ! \
                               rtph264depay ! avdec_h264 ! autovideoconvert ! appsink  emit-signals=True
 */
-<<<<<<< HEAD
-
-=======
->>>>>>> f38273b683b00f79f2e29cf494be64a13855fd32
 ////////////////////////////////////////////////////////////////////////////////
 #include <iostream>
 #include <string>
 #include <gst/gst.h>
-<<<<<<< HEAD
-#include <utils.h>
-////////////////////////////////////////////////////////////////////////////////
-typedef struct {
-  GstElement *pipeline;
-  GstElement *source;
-=======
 #include <gst/app/gstappsink.h>   //For appsink
 #include <utils.h>
 #include <thread>                 //For thread
@@ -85,7 +66,6 @@ typedef struct {
   GstElement *pipeline;
   GstElement *source;
   GstElement *enc_img;
->>>>>>> f38273b683b00f79f2e29cf494be64a13855fd32
   GstElement *sink;
   GstElement *conv;
   GstElement *h264dec;
@@ -93,8 +73,6 @@ typedef struct {
   GstCaps    *filtercaps;
 } pipeline_t;
 
-<<<<<<< HEAD
-=======
 pipeline_t p;                       //Accessed by the thread
 std::vector<uint8_t> appsinkbuffer;
 std::vector<uint32_t> buffersize;
@@ -103,7 +81,6 @@ pthread_mutex_t mtx_buff;
 std::thread appsink_thread, socket_thread;
 bool m_isRunning = true;
 
->>>>>>> f38273b683b00f79f2e29cf494be64a13855fd32
 ////////////////////////////////////////////////////////////////////////////////
 int main (int argc, char *argv[])
 {
@@ -111,11 +88,7 @@ int main (int argc, char *argv[])
   std::cout << "*************** Remote App v. " << VERSION << " ****************" << std::endl;
   std::cout << "**************************************************"<< std::endl;
 
-<<<<<<< HEAD
-  pipeline_t p;
-=======
   
->>>>>>> f38273b683b00f79f2e29cf494be64a13855fd32
   GstBus *bus;
   GstMessage *msg;
   GstStateChangeReturn ret;
@@ -123,9 +96,6 @@ int main (int argc, char *argv[])
   gint port = 0;
 
   if(argc <= 1) {
-<<<<<<< HEAD
-    port = 4000;
-=======
   
     auto port_str = std::getenv("GST_REMOTE_INCOMING_PORT");
 
@@ -135,18 +105,13 @@ int main (int argc, char *argv[])
     }
 
     port = std::atoi(port_str);
->>>>>>> f38273b683b00f79f2e29cf494be64a13855fd32
   }
   else {
     port = std::stoi(argv[1]);
   }
 
   if(utils::validate_port(port)) {
-<<<<<<< HEAD
-    std::cout << "Running on Port: " << port << std::endl;
-=======
     std::cout << "Listening to incoming gst pipeline on port: " << port << std::endl;
->>>>>>> f38273b683b00f79f2e29cf494be64a13855fd32
   }
   else {
     std::cout << "Not valid port. Exiting..." << std::endl;
@@ -372,11 +337,7 @@ int main (int argc, char *argv[])
   }
 
   /* Build the pipeline */
-<<<<<<< HEAD
-  gst_bin_add_many (GST_BIN (p.pipeline), p.source, p.rtp_dec, p.h264dec, p.conv, p.sink, NULL);
-=======
   gst_bin_add_many (GST_BIN (p.pipeline), p.source, p.rtp_dec, p.h264dec, p.conv, p.enc_img, p.sink, NULL);
->>>>>>> f38273b683b00f79f2e29cf494be64a13855fd32
   
   if (gst_element_link_many (p.source, p.rtp_dec, NULL) != TRUE) {
     g_printerr ("First Elements could not be linked.\n");
@@ -384,11 +345,7 @@ int main (int argc, char *argv[])
     return -1;
   }
 
-<<<<<<< HEAD
-  if (gst_element_link_many (p.rtp_dec, p.h264dec, p.conv, p.sink, NULL) != TRUE) {
-=======
   if (gst_element_link_many (p.rtp_dec, p.h264dec, p.conv, p.enc_img, p.sink, NULL) != TRUE) {
->>>>>>> f38273b683b00f79f2e29cf494be64a13855fd32
     g_printerr ("Next Elements could not be linked.\n");
     gst_object_unref (p.pipeline);
     return -1;
