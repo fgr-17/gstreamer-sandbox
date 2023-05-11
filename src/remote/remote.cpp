@@ -55,8 +55,10 @@ gst-launch-1.0 udpsrc port={self._port} ! application/x-rtp, encoding-name=H264,
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <unistd.h>               //For write
+
+#include <cstdlib>                // get port from OS environment var
+
 ////////////////////////////////////////////////////////////////////////////////
-#define SERVER_PORT_DATA      4007 //htons??
 #define SERVER_PORT_HANDSHAKE 4008
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -94,14 +96,22 @@ int main (int argc, char *argv[])
   gint port = 0;
 
   if(argc <= 1) {
-    port = 4000;
+  
+    auto port_str = std::getenv("GST_REMOTE_INCOMING_PORT");
+
+    if(port_str == nullptr) {
+      perror("GST_REMOTE_INCOMING_PORT environment var not set");
+      exit(EXIT_FAILURE);
+    }
+
+    port = std::atoi(port_str);
   }
   else {
     port = std::stoi(argv[1]);
   }
 
   if(utils::validate_port(port)) {
-    std::cout << "Running on Port: " << port << std::endl;
+    std::cout << "Listening to incoming gst pipeline on port: " << port << std::endl;
   }
   else {
     std::cout << "Not valid port. Exiting..." << std::endl;
@@ -224,9 +234,28 @@ int main (int argc, char *argv[])
           perror("socket failed");
           exit(EXIT_FAILURE);
       }
+
+
+      auto server_port_str = std::getenv("GST_YOLO_PORT");
+
+      if(server_port_str == nullptr) {
+        perror("GST_YOLO_PORT environment var not set");
+        exit(EXIT_FAILURE);
+      }
+
+      auto server_port = std::atoi(server_port_str);
       
+
+      if(utils::validate_port(server_port)) {
+        std::cout << "Listening to incoming yolo client on port: " << server_port << std::endl;
+      }
+      else {
+        std::cout << "Not valid yolo port. Exiting..." << std::endl;
+        exit(EXIT_FAILURE);
+      }
+
       server_addr.sin_family = AF_INET;
-      server_addr.sin_port = htons(SERVER_PORT_DATA);
+      server_addr.sin_port = htons(server_port);
       server_addr.sin_addr.s_addr = INADDR_ANY;
 
       if (bind(server_socket, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
